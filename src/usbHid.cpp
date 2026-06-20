@@ -134,6 +134,7 @@ void usbKeyboard() {
     // 构建 USB HID 键盘报告
     KeyReport report = {0};
     report.modifiers = status.modifiers;  // 直接复制修饰键掩码
+    if (status.opt) report.modifiers |= 0x08; // Opt → Windows/GUI (确保跨版本生效)
 
     // 填充按键码 (最多6个)
     uint8_t idx = 0;

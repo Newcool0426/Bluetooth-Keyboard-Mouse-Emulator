@@ -197,6 +197,7 @@ void bluetoothKeyboard() {
     if (status.ctrl)  modifier |= 0x01;   // 左/右 Ctrl
     if (status.shift) modifier |= 0x02;   // 左/右 Shift
     if (status.alt)   modifier |= 0x04;   // 左/右 Alt
+    if (status.opt)   modifier |= 0x08;   // Opt → Windows/GUI
 
     // 组装并发送键盘报告
     uint8_t report[8] = {
