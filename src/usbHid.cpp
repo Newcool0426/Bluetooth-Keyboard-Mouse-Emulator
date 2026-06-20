@@ -151,17 +151,10 @@ void usbKeyboard() {
         if (!present && idx < 6) report.keys[idx++] = HID_SPACE;
     }
 
-    // ESC 键 — 通过 FN + `·~` 组合键触发
-    // M5Cardputer 键盘上 `·~` 键的 FN 层标注为 ESC (HID 0x29)
-    // 当 FN 按下时键盘固件会在 hid_keys 中加入 ESC 码，此处作为补充确保一定生效
-    if (status.esc && idx < 6) {
-        const uint8_t HID_ESC = 0x29;
-        bool escInKeys = false;
-        for (uint8_t i = 0; i < idx; ++i) if (report.keys[i] == HID_ESC) { escInKeys = true; break; }
-        if (!escInKeys) {
-            report.keys[idx++] = HID_ESC;
-        }
-    }
+    // ESC 键 — 通过 FN + `·~` 组合键触发 (HID 0x29)
+    // M5Cardputer 键盘上 `·~` 键的 FN 层标注为 ESC
+    // 当 FN 按下时键盘固件将 ESC 键码 0x29 推入 hid_keys，
+    // 上方的 for 循环已将其收集到 report.keys 中，无需额外处理
 
     // 发送报告
     if (idx == 0 && report.modifiers == 0) {
