@@ -232,7 +232,7 @@ void displayMainScreen(bool usbMode, bool mouseMode, bool bluetoothStatus) {
     M5Cardputer.Display.print("GO switch");
 
     // 绘制设备区域和图标
-    drawDeviceRect(true);
+    drawDeviceRect(mouseMode);
     drawMouseIcon(165, 80);     // 鼠标图标 — 右侧
     drawKeyboardIcon(42, 87);   // 键盘图标 — 左侧
     modeIndicator(usbMode, bluetoothStatus);
