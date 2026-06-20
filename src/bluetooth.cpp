@@ -175,7 +175,11 @@ void bluetoothKeyboard() {
     // FN + / = 右方向 | FN + , = 左方向 | FN + . = 下方向 | FN + ; = 上方向
     // FN + Backspace = Delete | FN + `·~ = ESC
     if (status.fn) {
-        // 辅助: 去重添加 HID 键码
+        // 将 Backspace 替换为 Delete (hid_keys 中只有原始 Backspace 码 0x2A)
+        for (int i = 0; i < count; i++) {
+            if (keycode[i] == 0x2A) { keycode[i] = 0x4C; break; }
+        }
+        // 方向键及 ESC — 通过物理按键矩阵检测
         auto addIfNew = [&](uint8_t hid) {
             if (count >= 6) return;
             for (int i = 0; i < count; i++) if (keycode[i] == hid) return;
@@ -185,7 +189,6 @@ void bluetoothKeyboard() {
         if (M5Cardputer.Keyboard.isKeyPressed(','))  addIfNew(0x50); // 左方向
         if (M5Cardputer.Keyboard.isKeyPressed('.'))  addIfNew(0x51); // 下方向
         if (M5Cardputer.Keyboard.isKeyPressed(';'))  addIfNew(0x52); // 上方向
-        if (status.backspace)                        addIfNew(0x4C); // Delete
         if (M5Cardputer.Keyboard.isKeyPressed('`'))  addIfNew(0x29); // ESC
     }
 
