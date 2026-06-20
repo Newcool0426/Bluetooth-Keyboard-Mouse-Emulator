@@ -17,7 +17,7 @@
 #include <USB.h>
 
 // 当前工作模式标志
-bool mouseMode = true;           // true=鼠标模式, false=键盘模式
+bool mouseMode = false;          // true=鼠标模式, false=键盘模式 (默认为键盘)
 bool usbMode = true;             // true=USB HID模式, false=蓝牙BLE模式
 bool lastBluetoothStatus = false; // 上一次蓝牙连接状态，用于检测状态变化
 

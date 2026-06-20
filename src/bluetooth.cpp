@@ -171,9 +171,11 @@ void bluetoothKeyboard() {
     }
 
     // ESC 键 — 通过 FN + `·~` 组合键触发 (HID 0x29)
-    // M5Cardputer 键盘上 `·~` 键的 FN 层标注为 ESC
-    // 当 FN 按下时，键盘固件会将 ESC 键码 0x29 推入 hid_keys 数组，
-    // 上方的 for 循环已将其收集到 keycode 中，无需额外处理
+    // M5Cardputer 键盘上 `·~` 键 (反引号键) 的 FN 层标注为 ESC
+    // 由于不同版本的 M5Cardputer 库对 FN 层按键处理不同，此处手动检测确保兼容
+    if (status.fn && M5Cardputer.Keyboard.isKeyPressed('`') && count < 6) {
+        keycode[count++] = 0x29;  // HID ESC 键码
+    }
 
     // 设置修饰键位掩码
     if (status.ctrl)  modifier |= 0x01;   // 左/右 Ctrl
