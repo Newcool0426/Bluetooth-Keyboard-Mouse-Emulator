@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "PowerShell(Get-ChildItem *)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}
