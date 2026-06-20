@@ -5,7 +5,7 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build:
@@ -33,9 +33,29 @@ jobs:
           restore-keys: pio-
 
       - name: 编译固件
-        run: pio run
+        id: build
+        run: |
+          pio run 2>&1 | tee build.log
+          exit ${PIPESTATUS[0]}
 
-      - name: 上传固件产物
+      - name: 显示编译错误
+        if: failure()
+        run: |
+          echo "=== 编译错误摘要 ==="
+          grep -E "error:|Error:|fatal error:" build.log || echo "无匹配的错误行"
+          echo ""
+          echo "=== 完整日志最后50行 ==="
+          tail -50 build.log
+
+      - name: 上传编译日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+
+      - name: 上传固件
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: firmware
