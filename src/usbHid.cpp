@@ -152,25 +152,26 @@ void usbKeyboard() {
     }
 
     // === FN 组合键映射 ===
-    // M5Cardputer 键盘 FN 层标注的功能键，通过手动检测确保跨版本库兼容
-    // FN + / = 右方向 | FN + , = 左方向 | FN + . = 下方向 | FN + ; = 上方向
-    // FN + Backspace = Delete | FN + `·~ = ESC
+    // 旧版 M5Cardputer 库不会自动转换 FN 层按键，hid_keys 中仍是原始键码。
+    // 此处直接替换原始 HID 码为功能键码，避免同时输出原键和功能键。
+    // FN + /(0x38)→右(0x4F) | FN + ,(0x36)→左(0x50) | FN + .(0x37)→下(0x51)
+    // FN + ;(0x33)→上(0x52) | FN + Backspace(0x2A)→Delete(0x4C)
+    // FN + `·~(0x35)→ESC(0x29)
     if (status.fn) {
-        // 将 Backspace 替换为 Delete (hid_keys 中只有原始 Backspace 码 0x2A)
-        for (uint8_t i = 0; i < idx; ++i) {
-            if (report.keys[i] == 0x2A) { report.keys[i] = 0x4C; break; }
-        }
-        // 方向键及 ESC — 通过物理按键矩阵检测
-        auto addIfNew = [&](uint8_t hid) {
-            if (idx >= 6) return;
-            for (uint8_t i = 0; i < idx; ++i) if (report.keys[i] == hid) return;
-            report.keys[idx++] = hid;
+        // 映射表: {原始HID码, 目标HID码}
+        static const uint8_t fnMap[][2] = {
+            {0x38, 0x4F}, // / → 右
+            {0x36, 0x50}, // , → 左
+            {0x37, 0x51}, // . → 下
+            {0x33, 0x52}, // ; → 上
+            {0x2A, 0x4C}, // Backspace → Delete
+            {0x35, 0x29}, // ` → ESC
         };
-        if (M5Cardputer.Keyboard.isKeyPressed('/'))  addIfNew(0x4F); // 右方向
-        if (M5Cardputer.Keyboard.isKeyPressed(','))  addIfNew(0x50); // 左方向
-        if (M5Cardputer.Keyboard.isKeyPressed('.'))  addIfNew(0x51); // 下方向
-        if (M5Cardputer.Keyboard.isKeyPressed(';'))  addIfNew(0x52); // 上方向
-        if (M5Cardputer.Keyboard.isKeyPressed('`'))  addIfNew(0x29); // ESC
+        for (auto& m : fnMap) {
+            for (uint8_t i = 0; i < idx; ++i) {
+                if (report.keys[i] == m[0]) { report.keys[i] = m[1]; break; }
+            }
+        }
     }
 
     // 发送报告
