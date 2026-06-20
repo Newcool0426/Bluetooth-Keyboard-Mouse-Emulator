@@ -151,11 +151,23 @@ void usbKeyboard() {
         if (!present && idx < 6) report.keys[idx++] = HID_SPACE;
     }
 
-    // ESC 键 — 通过 FN + `·~` 组合键触发 (HID 0x29)
-    // M5Cardputer 键盘上 `·~` 键 (反引号键) 的 FN 层标注为 ESC
-    // 由于不同版本的 M5Cardputer 库对 FN 层按键处理不同，此处手动检测确保兼容
-    if (status.fn && M5Cardputer.Keyboard.isKeyPressed('`') && idx < 6) {
-        report.keys[idx++] = 0x29;  // HID ESC 键码
+    // === FN 组合键映射 ===
+    // M5Cardputer 键盘 FN 层标注的功能键，通过手动检测确保跨版本库兼容
+    // FN + / = 右方向 | FN + , = 左方向 | FN + . = 下方向 | FN + ; = 上方向
+    // FN + Backspace = Delete | FN + `·~ = ESC
+    if (status.fn) {
+        // 辅助: 去重添加 HID 键码
+        auto addIfNew = [&](uint8_t hid) {
+            if (idx >= 6) return;
+            for (uint8_t i = 0; i < idx; ++i) if (report.keys[i] == hid) return;
+            report.keys[idx++] = hid;
+        };
+        if (M5Cardputer.Keyboard.isKeyPressed('/'))  addIfNew(0x4F); // 右方向
+        if (M5Cardputer.Keyboard.isKeyPressed(','))  addIfNew(0x50); // 左方向
+        if (M5Cardputer.Keyboard.isKeyPressed('.'))  addIfNew(0x51); // 下方向
+        if (M5Cardputer.Keyboard.isKeyPressed(';'))  addIfNew(0x52); // 上方向
+        if (status.backspace)                        addIfNew(0x4C); // Delete
+        if (M5Cardputer.Keyboard.isKeyPressed('`'))  addIfNew(0x29); // ESC
     }
 
     // 发送报告
