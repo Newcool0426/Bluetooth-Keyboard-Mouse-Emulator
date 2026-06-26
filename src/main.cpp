@@ -112,7 +112,9 @@ void loop() {
     // BtnA (GO 键) 用于切换键盘/鼠标模式
     if (M5Cardputer.BtnA.isPressed()) {
         mouseMode = !mouseMode;
+        drawStatusBar(mouseMode);       // 更新状态栏
         drawDeviceRect(mouseMode);
+        clearKeyDisplayArea();          // 清空按键显示
         delay(200);  // 防抖延迟
     }
 
@@ -121,6 +123,11 @@ void loop() {
         handleUsbMode(mouseMode);
     } else {
         handleBluetoothMode(mouseMode);
+    }
+
+    // 按键状态变化时更新屏幕上的按键显示
+    if (M5Cardputer.Keyboard.isChange()) {
+        drawKeyDisplay(mouseMode);
     }
 
 }
