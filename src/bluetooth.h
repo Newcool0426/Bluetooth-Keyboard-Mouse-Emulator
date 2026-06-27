@@ -14,6 +14,7 @@
 #define BLUETOOTH_H
 
 #include <Arduino.h>
+#include <M5Cardputer.h>
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
