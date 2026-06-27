@@ -20,7 +20,6 @@
 #include "BLEHIDDevice.h"
 #include "HIDTypes.h"
 #include "HIDKeyboardTypes.h"
-#include "display.h"
 
 // 全局 BLE HID 设备及特征值指针
 extern BLEHIDDevice* hid;              // BLE HID 设备对象

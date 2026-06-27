@@ -23,16 +23,17 @@ USBHIDKeyboard keyboard; // USB HID 键盘设备
 
 /**
  * @brief USB 模式的主处理循环
- * @param mouseMode true=鼠标模式, false=键盘模式
+ * @param mouseMode  true=鼠标模式, false=键盘模式
+ * @param keyChanged 键盘状态变化标志 (由 loop() 预先保存)
  *
  * 根据当前设备模式分发到对应的处理函数。
  * 每次调用后延迟5ms，提供约200Hz的报告速率。
  */
-void handleUsbMode(bool mouseMode) {
+void handleUsbMode(bool mouseMode, bool keyChanged) {
     if (mouseMode) {
         usbMouse();
     } else  {
-        usbKeyboard();
+        usbKeyboard(keyChanged);
     }
     delay(5);
 }
@@ -106,6 +107,7 @@ void usbMouse() {
 
 /**
  * @brief 发送 USB 键盘 HID 报告
+ * @param keyChanged 键盘状态是否已变化 (由 loop() 预先保存并传入)
  *
  * 处理流程:
  * 1. 首次调用时初始化 USB HID 键盘 (延迟初始化，static 变量确保只执行一次)
@@ -118,16 +120,16 @@ void usbMouse() {
  * 4. 组装 KeyReport 并发送
  *
  * 键盘报告优化:
- *   - 使用 isChange() 检测状态变化，避免在无变化时重复发送相同报告
+ *   - 使用传入的 keyChanged 避免重复查询 isChange() (会消耗变化标志)
  *   - 当没有按键按下且没有修饰键时，发送 releaseAll() 而非空报告
  */
-void usbKeyboard() {
+void usbKeyboard(bool keyChanged) {
     // 延迟初始化 — 只在第一次调用时执行
     static bool inited = false;
     if (!inited) { keyboard.begin(); inited = true; }
 
-    // 仅在键盘状态发生变化时才处理 (避免重复发送相同的报告)
-    if (!M5Cardputer.Keyboard.isChange()) return;
+    // 仅在键盘状态发生变化时才处理 (使用传入的标志，避免重复查询)
+    if (!keyChanged) return;
 
     Keyboard_Class::KeysState status = M5Cardputer.Keyboard.keysState();
 

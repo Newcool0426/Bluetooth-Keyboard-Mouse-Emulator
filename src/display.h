@@ -5,11 +5,9 @@
  * 提供 M5Cardputer 屏幕上的各种 UI 元素的绘制函数，包括：
  * - 欢迎画面
  * - 模式选择界面 (USB/蓝牙)
- * - 主界面 (状态栏、状态指示、按键显示、设备图标)
- * - 顶部模式状态栏 (键盘/鼠标)
+ * - 主界面 (状态栏、按键显示)
+ * - 顶部状态栏 (含USB/BT图标, 键盘/鼠标模式)
  * - 实时按键显示 (大字体居中)
- * - 键盘/鼠标图标
- * - 连接状态指示器
  */
 
 #ifndef DISPLAY_H
@@ -31,31 +29,19 @@ void displaySelectionScreen(bool mouseMode);
 
 /**
  * @brief 显示主界面
- * @param usbMode       true=USB模式, false=蓝牙模式
- * @param mouseMode     true=鼠标模式, false=键盘模式
+ * @param usbMode         true=USB模式, false=蓝牙模式
+ * @param mouseMode       true=鼠标模式, false=键盘模式
  * @param bluetoothStatus true=蓝牙已连接, false=蓝牙未连接
  */
 void displayMainScreen(bool usbMode, bool mouseMode, bool bluetoothStatus);
 
 /**
- * @brief 绘制/更新连接模式指示器
- * @param usbMode         true=USB模式 (显示绿色USB), false=蓝牙模式
- * @param bluetoothStatus true=蓝牙已连接 (绿色), false=未连接 (红色)
+ * @brief 绘制顶部状态栏，包含连接图标和当前模式
+ * @param usbMode         true=USB模式, false=蓝牙模式
+ * @param mouseMode       true=鼠标模式(蓝色), false=键盘模式(绿色)
+ * @param bluetoothStatus true=蓝牙已连接(绿图标), false=未连接(红图标)
  */
-void modeIndicator(bool usbMode, bool bluetoothStatus);
-
-/**
- * @brief 绘制设备类型矩形框
- * @param reverse true=键盘绿框+鼠标白框, false=键盘白框+鼠标绿框
- *                用于视觉上指示当前选中的设备类型
- */
-void drawDeviceRect(bool reverse);
-
-/**
- * @brief 绘制顶部状态栏，显示当前模式
- * @param mouseMode true=鼠标模式(蓝色), false=键盘模式(绿色)
- */
-void drawStatusBar(bool mouseMode);
+void drawStatusBar(bool usbMode, bool mouseMode, bool bluetoothStatus);
 
 /**
  * @brief 在屏幕中央区域显示当前按下的按键

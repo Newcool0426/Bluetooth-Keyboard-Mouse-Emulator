@@ -95,38 +95,46 @@ void setup() {
  *
  * 在每个循环迭代中执行以下操作:
  * 1. 更新设备状态
- * 2. 检测蓝牙连接状态变化并更新状态指示器
- * 3. 检测模式切换按键 (BtnA/GO键) 并在键盘/鼠标模式间切换
- * 4. 根据当前模式 (USB/BLE, 键盘/鼠标) 发送相应的 HID 数据
+ * 2. 保存键盘变化标志 (必须在 HID 处理前，避免被消费)
+ * 3. 检测蓝牙连接状态变化并更新状态栏
+ * 4. 检测模式切换按键 (BtnA/GO键) 并在键盘/鼠标模式间切换
+ * 5. 根据当前模式 (USB/BLE, 键盘/鼠标) 发送相应的 HID 数据
+ * 6. 更新屏幕上的按键显示
  */
 void loop() {
     M5Cardputer.update();
 
-    // 检测蓝牙连接状态变化，更新屏幕状态指示器
+    // ★ 关键: 在 HID 处理前保存 isChange() 状态。
+    // usbKeyboard() 内部会调用 isChange() 消费掉变化标志，
+    // 导致后续 drawKeyDisplay() 永远不被调用，按键信息无法显示。
+    bool keyChanged = M5Cardputer.Keyboard.isChange();
+
+    // 检测蓝牙连接状态变化，更新屏幕状态栏
     auto bluetoothStatus = getBluetoothStatus();
     if (lastBluetoothStatus != bluetoothStatus) {
-        modeIndicator(usbMode, bluetoothStatus);
+        drawStatusBar(usbMode, mouseMode, bluetoothStatus);
         lastBluetoothStatus = bluetoothStatus;
     }
 
     // BtnA (GO 键) 用于切换键盘/鼠标模式
     if (M5Cardputer.BtnA.isPressed()) {
         mouseMode = !mouseMode;
-        drawStatusBar(mouseMode);       // 更新状态栏
-        drawDeviceRect(mouseMode);
+        drawStatusBar(usbMode, mouseMode, bluetoothStatus);
         clearKeyDisplayArea();          // 清空按键显示
         delay(200);  // 防抖延迟
     }
 
     // 根据当前通信模式分发到对应的处理函数
+    // 传入预先保存的 keyChanged，避免重复查询 isChange()
     if (usbMode) {
-        handleUsbMode(mouseMode);
+        handleUsbMode(mouseMode, keyChanged);
     } else {
         handleBluetoothMode(mouseMode);
     }
 
     // 按键状态变化时更新屏幕上的按键显示
-    if (M5Cardputer.Keyboard.isChange()) {
+    // (使用预先保存的 keyChanged，不会被 HID 处理消费)
+    if (keyChanged) {
         drawKeyDisplay(mouseMode);
     }
 

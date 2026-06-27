@@ -17,16 +17,20 @@
 /** @brief 根据按键状态发送 USB 鼠标移动和点击事件 */
 void usbMouse();
 
-/** @brief 根据按键状态发送 USB 键盘按键事件 */
-void usbKeyboard();
+/**
+ * @brief 根据按键状态发送 USB 键盘按键事件
+ * @param keyChanged 键盘状态是否已变化 (由调用者预先保存，避免重复查询 isChange())
+ */
+void usbKeyboard(bool keyChanged);
 
 /**
  * @brief USB 模式的统一处理入口
- * @param mouseMode true=鼠标模式, false=键盘模式
+ * @param mouseMode  true=鼠标模式, false=键盘模式
+ * @param keyChanged 键盘状态是否已变化
  *
  * 根据 mouseMode 参数分发到 usbMouse() 或 usbKeyboard()，
  * 每次调用后延迟5ms以控制发送速率。
  */
-void handleUsbMode(bool mouseMode);
+void handleUsbMode(bool mouseMode, bool keyChanged);
 
 #endif
