@@ -7,11 +7,11 @@
  *
  * UI 布局总览:
  * ┌──────────────────────────────────┐
- * │ [USB/BT] KEYBOARD / MOUSE       │  y=0~18   (状态栏+连接图标)
- * │ [GO switch 切换提示]             │  y=22~41  (操作提示)
+ * │ [USB/BT] KEYBOARD          GO ▶ │  y=0~21   (状态栏: 图标+模式+GO提示)
  * │                                  │
- * │     ┌──────────────────┐        │  y=45~124 (按键显示 - 大区域)
- * │     │    Pressed Key   │        │
+ * │     ┌──────────────────┐        │  y=24~129 (按键显示 - 106px 大区域)
+ * │     │   Last / Current │        │
+ * │     │       Key        │        │
  * │     └──────────────────┘        │
  * └──────────────────────────────────┘
  *
@@ -27,129 +27,117 @@
 // ============================================================
 // 布局常量
 // ============================================================
-#define STATUS_BAR_H    19    // 顶部状态栏高度
-#define CONNECTION_Y    22    // GO switch 提示行 Y 坐标
-#define KEY_DISPLAY_Y   45    // 按键显示区域 Y 坐标
-#define KEY_DISPLAY_H   81    // 按键显示区域高度 (大幅扩大)
+#define STATUS_BAR_H    22    // 顶部状态栏高度 (略高以容纳更好的图标)
+#define KEY_DISPLAY_Y   24    // 按键显示区域 Y 坐标 (紧跟状态栏)
+#define KEY_DISPLAY_H   106   // 按键显示区域高度 (占满剩余屏幕)
+
+// 记录最后一次按下的按键，松开后保持显示
+static char g_lastKeyText[32] = "";
 
 // ============================================================
-// 图标绘制函数
+// 图标绘制函数 (美化版)
 // ============================================================
 
 /**
- * @brief 绘制简化 USB 三叉戟图标
- * @param x     左上角 X 坐标
- * @param y     左上角 Y 坐标
- * @param color 颜色
+ * @brief 绘制标准 USB 三叉戟图标 (16x17 px)
  *
- * 图标大小约 12x13 像素:
- *   - 底部小圆 (连接器)
- *   - 竖线
- *   - 顶部横线
+ * 形状参考标准 USB 标志:
+ *     ═══        ← 横杆
+ *    ╱ │ ╲       ← 两侧斜线
+ *      │          ← 竖杆
+ *      ●          ← 底部圆点 (连接器)
  */
 static void drawUsbIcon(uint8_t x, uint8_t y, uint16_t color) {
-    M5Cardputer.Display.fillCircle(x + 6, y + 11, 2, color);
-    M5Cardputer.Display.drawLine(x + 6, y + 1, x + 6, y + 9, color);
-    M5Cardputer.Display.drawLine(x + 3, y + 1, x + 9, y + 1, color);
-    M5Cardputer.Display.drawLine(x, y + 3, x + 6, y + 1, color);
-    M5Cardputer.Display.drawLine(x + 12, y + 3, x + 6, y + 1, color);
+    uint8_t cx = x + 8;   // 中心 X
+    uint8_t topY = y + 2;
+    uint8_t botY = y + 14;
+
+    // 底部圆点 (USB 连接器)
+    M5Cardputer.Display.fillCircle(cx, botY + 1, 3, color);
+
+    // 竖杆
+    M5Cardputer.Display.drawLine(cx, topY, cx, botY - 1, color);
+
+    // 顶部横杆
+    M5Cardputer.Display.drawLine(x + 2, topY, x + 14, topY, color);
+
+    // 左上斜线 (箭头)
+    M5Cardputer.Display.drawLine(x, y + 5, cx - 1, topY, color);
+
+    // 右上斜线 (箭头)
+    M5Cardputer.Display.drawLine(x + 16, y + 5, cx + 1, topY, color);
 }
 
 /**
- * @brief 绘制简化蓝牙 ᛒ 图标
- * @param x     左上角 X 坐标
- * @param y     左上角 Y 坐标
- * @param color 颜色
+ * @brief 绘制标准蓝牙北欧符文图标 (16x18 px)
  *
- * 图标大小约 12x13 像素，使用5条线段绘制蓝牙符文造型。
+ * 蓝牙标志来自 Younger Futhark 的组合符文 (ᚼ + ᛒ):
+ *   中心竖线 + 右侧上下两个指向右的折角 = 侧放的 "B" 形
  */
 static void drawBluetoothIcon(uint8_t x, uint8_t y, uint16_t color) {
-    // 中心竖线
-    M5Cardputer.Display.drawLine(x + 6, y + 1, x + 6, y + 12, color);
-    // 右上折
-    M5Cardputer.Display.drawLine(x + 6, y + 1, x + 12, y + 5, color);
-    M5Cardputer.Display.drawLine(x + 6, y + 8, x + 12, y + 5, color);
-    // 右下折
-    M5Cardputer.Display.drawLine(x + 6, y + 12, x + 12, y + 8, color);
-    M5Cardputer.Display.drawLine(x + 6, y + 5, x + 12, y + 8, color);
+    uint8_t cx = x + 8;
+
+    // 中心竖线 (贯穿整个图标)
+    M5Cardputer.Display.drawLine(cx, y + 1, cx, y + 17, color);
+
+    // === 右侧: 上下两个指向右的尖角 ===
+    // 上尖角 — 从顶部斜向右, 再折回中部
+    M5Cardputer.Display.drawLine(cx, y + 1, x + 15, y + 7, color);
+    M5Cardputer.Display.drawLine(cx, y + 8, x + 15, y + 7, color);
+
+    // 下尖角 — 从底部斜向右, 再折回中部
+    M5Cardputer.Display.drawLine(cx, y + 17, x + 15, y + 12, color);
+    M5Cardputer.Display.drawLine(cx, y + 9, x + 15, y + 12, color);
+
+    // === 左侧: 上下两个小尖角 (形成 "B" 的左边弧) ===
+    // 上左尖角
+    M5Cardputer.Display.drawLine(cx, y + 3, x + 1, y + 7, color);
+    M5Cardputer.Display.drawLine(cx, y + 8, x + 1, y + 7, color);
+
+    // 下左尖角
+    M5Cardputer.Display.drawLine(cx, y + 9, x + 1, y + 13, color);
+    M5Cardputer.Display.drawLine(cx, y + 15, x + 1, y + 13, color);
 }
 
 // ============================================================
 // 屏幕初始化
 // ============================================================
 
-/**
- * @brief 初始化显示屏设置
- *
- * - 旋转方向设置为1 (横屏显示)
- * - 填充黑色背景
- * - 设置默认文字颜色为黑色
- */
 void setupDisplay() {
     M5Cardputer.Display.setRotation(1);
     M5Cardputer.Display.fillScreen(TFT_BLACK);
     M5Cardputer.Display.setTextColor(TFT_BLACK);
-
 }
 
 // ============================================================
 // 欢迎画面
 // ============================================================
 
-/**
- * @brief 显示启动欢迎画面
- *
- * 显示内容:
- *   - 设备名称: "M5-Keyboard-Mouse"
- *   - 版本信息: "Version 1.1 - Geo"
- *   - 显示持续约2秒后进入模式选择
- */
 void displayWelcomeScreen() {
-    // 名称外框
     M5Cardputer.Display.drawRect(9, 47, 220, 40, TFT_LIGHTGRAY);
     M5Cardputer.Display.setTextColor(TFT_LIGHTGRAY);
     M5Cardputer.Display.setCursor(18, 58);
     M5Cardputer.Display.setTextSize(2);
     M5Cardputer.Display.printf("M5-Keyboard-Mouse");
 
-    // 版本信息
     M5Cardputer.Display.setCursor(70, 120);
     M5Cardputer.Display.setTextSize(1);
     M5Cardputer.Display.printf("Version 1.1 - Geo");
 
-    delay(2000);  // 显示2秒
+    delay(2000);
 }
 
 // ============================================================
 // 主界面
 // ============================================================
 
-/**
- * @brief 绘制完整的主界面
- * @param usbMode         true=USB模式, false=蓝牙模式
- * @param mouseMode       true=鼠标模式, false=键盘模式
- * @param bluetoothStatus true=蓝牙已连接, false=未连接
- *
- * 绘制所有UI元素:
- * 1. 清屏 (黑色)
- * 2. 顶部状态栏: 含USB/BT图标 + "KEYBOARD"/"MOUSE"
- * 3. "GO switch" 操作提示
- * 4. 按键显示区域 (初始为空白带边框)
- */
 void displayMainScreen(bool usbMode, bool mouseMode, bool bluetoothStatus) {
     M5Cardputer.Display.fillScreen(TFT_BLACK);
 
-    // 顶部状态栏 — 含连接图标 + 当前模式
+    // 顶部状态栏 — 含连接图标 + 模式 + GO 提示
     drawStatusBar(usbMode, mouseMode, bluetoothStatus);
 
-    // 操作提示 — "GO switch" 切换键盘/鼠标
-    M5Cardputer.Display.setTextColor(TFT_LIGHTGREY);
-    M5Cardputer.Display.drawRoundRect(123, CONNECTION_Y, 106, 20, 5, TFT_LIGHTGREY);
-    M5Cardputer.Display.setCursor(136, CONNECTION_Y + 4);
-    M5Cardputer.Display.setTextSize(1.6);
-    M5Cardputer.Display.print("GO switch");
-
-    // 初始化按键显示区域 (带边框的空白区域)
+    // 按键显示区域 (初始为空白带边框)
     clearKeyDisplayArea();
 }
 
@@ -158,61 +146,65 @@ void displayMainScreen(bool usbMode, bool mouseMode, bool bluetoothStatus) {
 // ============================================================
 
 /**
- * @brief 绘制顶部状态栏，显示连接图标和当前工作模式
- * @param usbMode         true=USB模式, false=蓝牙模式
- * @param mouseMode       true=鼠标模式(深蓝底色), false=键盘模式(深绿底色)
- * @param bluetoothStatus true=蓝牙已连接(绿色图标), false=未连接(红色图标)
+ * @brief 绘制顶部状态栏
  *
- * 布局 (y=0~18):
- *   [USB/BT图标 x=2..14] [模式文字 x=18...]
+ * 布局 (y=0~21, h=22):
+ *   [USB/BT 图标 x=2] [模式文字 x=20]  ...  [GO ▶ x=右侧]
  *
- * 图标颜色:
- *   - USB模式: 绿色USB图标
- *   - 蓝牙已连接: 绿色蓝牙图标
- *   - 蓝牙未连接: 红色蓝牙图标
+ * 左侧图标:
+ *   - USB 模式: 绿色 USB 三叉戟
+ *   - 蓝牙已连接: 绿色蓝牙符文
+ *   - 蓝牙未连接: 红色蓝牙符文
+ *
+ * 右侧: "GO ▶" 提示 — 按 GO 键切换键盘/鼠标模式
  */
 void drawStatusBar(bool usbMode, bool mouseMode, bool bluetoothStatus) {
     int w = M5Cardputer.Display.width();
     uint16_t bgColor = mouseMode ? TFT_NAVY : TFT_DARKGREEN;
     M5Cardputer.Display.fillRect(0, 0, w, STATUS_BAR_H, bgColor);
 
-    // 连接图标颜色
+    // === 左侧: 连接图标 ===
     uint16_t iconColor;
     if (usbMode) {
-        iconColor = TFT_GREEN;           // USB 始终绿色
+        iconColor = TFT_GREEN;                          // USB 始终绿色
     } else {
-        iconColor = bluetoothStatus ? TFT_GREEN : TFT_RED;  // BT: 绿/红
+        iconColor = bluetoothStatus ? TFT_GREEN : TFT_RED; // BT: 连接=绿, 未连接=红
     }
 
-    // 绘制 USB 或 蓝牙 图标 (x=2, y=3, ~13px)
     if (usbMode) {
         drawUsbIcon(2, 3, iconColor);
     } else {
-        drawBluetoothIcon(2, 3, iconColor);
+        drawBluetoothIcon(2, 2, iconColor);
     }
 
-    // 模式文字 (紧贴图标，仅2字符缩进)
+    // === 中间: 模式文字 ===
     M5Cardputer.Display.setTextColor(TFT_WHITE);
     M5Cardputer.Display.setTextSize(1.5);
-    M5Cardputer.Display.setCursor(18, 3);
+    M5Cardputer.Display.setCursor(20, 4);
     M5Cardputer.Display.print(mouseMode ? "MOUSE" : "KEYBOARD");
+
+    // === 右侧: GO 切换提示 ===
+    // 小字体右对齐, 提示用户按 GO 键切换模式
+    M5Cardputer.Display.setTextSize(1.2);
+    const char* goHint = "GO >";
+    int goW = strlen(goHint) * 7;  // 字号1.2 ≈ 7px/char
+    M5Cardputer.Display.setCursor(w - goW - 6, 5);
+    M5Cardputer.Display.print(goHint);
 }
 
 // ============================================================
-// 按键显示
+// 按键 → 显示符号 映射
 // ============================================================
 
 /**
- * @brief 根据 HID 键码返回对应的显示字符/字符串
- * @param key HID 键码
- * @param shifted true=Shift 修饰键被按下
- * @param buf  输出缓冲区 (至少 8 字节)
- * @return 返回 buf 指针，方便链式调用
+ * @brief 将 HID 键码转换为紧凑的显示符号
  *
- * 将标准 HID 键盘使用码转换为可显示的字符串：
- *   - 字母/数字/标点 → 对应的 ASCII 字符
- *   - 特殊键 → 简短的描述文字 (如 "Enter", "Bksp")
- *   - 未知键码 → 空字符串
+ * 使用业界常见的键帽标注方式:
+ *   - 字母: a-z / A-Z (Shift)
+ *   - 数字: 1-9, 0 / !@#$%^&*() (Shift)
+ *   - 方向键: ^ v < >  (业界标准方向表示)
+ *   - 编辑键: Ent Esc Bsp Tab Spc Del
+ *   - 标点符号: 保持原样
  */
 static const char* hidToDisplay(uint8_t key, bool shifted, char* buf) {
     buf[0] = '\0';
@@ -236,43 +228,45 @@ static const char* hidToDisplay(uint8_t key, bool shifted, char* buf) {
         buf[1] = '\0';
     } else {
         switch (key) {
-            case 0x28: strcpy(buf, "Enter"); break;
-            case 0x29: strcpy(buf, "Esc");   break;
-            case 0x2A: strcpy(buf, "Bksp");  break;
-            case 0x2B: strcpy(buf, "Tab");   break;
-            case 0x2C: strcpy(buf, "Space"); break;
-            case 0x2D: strcpy(buf, "-");     break;
-            case 0x2E: strcpy(buf, "=");     break;
-            case 0x2F: strcpy(buf, "[");     break;
-            case 0x30: strcpy(buf, "]");     break;
-            case 0x31: strcpy(buf, "\\");    break;
-            case 0x33: strcpy(buf, ";");     break;
-            case 0x34: strcpy(buf, "'");     break;
-            case 0x35: strcpy(buf, "`");     break;
-            case 0x36: strcpy(buf, ",");     break;
-            case 0x37: strcpy(buf, ".");     break;
-            case 0x38: strcpy(buf, "/");     break;
-            case 0x4C: strcpy(buf, "Del");   break;
-            case 0x4F: strcpy(buf, "Right"); break;
-            case 0x50: strcpy(buf, "Left");  break;
-            case 0x51: strcpy(buf, "Down");  break;
-            case 0x52: strcpy(buf, "Up");    break;
+            // --- 编辑/导航键 (紧凑符号) ---
+            case 0x28: strcpy(buf, "Ent");  break;  // Enter / Return
+            case 0x29: strcpy(buf, "Esc");  break;  // Escape
+            case 0x2A: strcpy(buf, "Bsp");  break;  // Backspace
+            case 0x2B: strcpy(buf, "Tab");  break;  // Tab
+            case 0x2C: strcpy(buf, "Spc");  break;  // Space
+            case 0x4C: strcpy(buf, "Del");  break;  // Delete (Forward)
+            // --- 方向键 (ASCII 箭头) ---
+            case 0x4F: strcpy(buf, ">");    break;  // Right Arrow
+            case 0x50: strcpy(buf, "<");    break;  // Left Arrow
+            case 0x51: strcpy(buf, "v");    break;  // Down Arrow
+            case 0x52: strcpy(buf, "^");    break;  // Up Arrow
+            // --- 标点符号 ---
+            case 0x2D: strcpy(buf, "-");    break;
+            case 0x2E: strcpy(buf, "=");    break;
+            case 0x2F: strcpy(buf, "[");    break;
+            case 0x30: strcpy(buf, "]");    break;
+            case 0x31: strcpy(buf, "\\");   break;
+            case 0x33: strcpy(buf, ";");    break;
+            case 0x34: strcpy(buf, "'");    break;
+            case 0x35: strcpy(buf, "`");    break;
+            case 0x36: strcpy(buf, ",");    break;
+            case 0x37: strcpy(buf, ".");    break;
+            case 0x38: strcpy(buf, "/");    break;
             default: break;
         }
     }
     return buf;
 }
 
+// ============================================================
+// 按键显示字符串构建
+// ============================================================
+
 /**
  * @brief 从键盘状态构建显示字符串
- * @param mouseMode true=鼠标模式, false=键盘模式
- * @param out       输出缓冲区
- * @param outSize   缓冲区大小
- * @return 显示字符串指针 (同 out)，无按键时返回空字符串
  *
- * 根据当前模式生成不同的显示文本：
- *   - 键盘模式: "修饰键+按键" 格式，如 "Ctrl+A"、"Shift+1"、"Enter"
- *   - 鼠标模式: 方向或按钮名称，如 "Up"、"L-Click"
+ * 键盘模式: "Ctrl+A", "Shift+1", "Ent", "^" (方向键)
+ * 鼠标模式: "^" "v" "L-Clk" "R-Clk"
  */
 static const char* getKeyDisplayString(bool mouseMode, char* out, size_t outSize) {
     out[0] = '\0';
@@ -280,50 +274,51 @@ static const char* getKeyDisplayString(bool mouseMode, char* out, size_t outSize
     char buf[8];
 
     if (mouseMode) {
-        // 鼠标模式 — 方向移动
-        if (M5Cardputer.Keyboard.isKeyPressed(';'))        { strcpy(out, "Up");    return out; }
-        if (M5Cardputer.Keyboard.isKeyPressed('.'))        { strcpy(out, "Down");  return out; }
-        if (M5Cardputer.Keyboard.isKeyPressed('/'))        { strcpy(out, "Right"); return out; }
-        if (M5Cardputer.Keyboard.isKeyPressed(','))        { strcpy(out, "Left");  return out; }
+        // 方向移动 — 使用箭头符号
+        if (M5Cardputer.Keyboard.isKeyPressed(';'))        { strcpy(out, "^");      return out; }
+        if (M5Cardputer.Keyboard.isKeyPressed('.'))        { strcpy(out, "v");      return out; }
+        if (M5Cardputer.Keyboard.isKeyPressed('/'))        { strcpy(out, ">");      return out; }
+        if (M5Cardputer.Keyboard.isKeyPressed(','))        { strcpy(out, "<");      return out; }
         // 鼠标按键
-        if (status.enter)                                  { strcpy(out, "L-Click"); return out; }
-        if (M5Cardputer.Keyboard.isKeyPressed('\\'))       { strcpy(out, "R-Click"); return out; }
+        if (status.enter)                                  { strcpy(out, "L-Clk");  return out; }
+        if (M5Cardputer.Keyboard.isKeyPressed('\\'))       { strcpy(out, "R-Clk");  return out; }
         return out;
     }
 
-    // 键盘模式 — 修饰键前缀
+    // === 键盘模式 ===
     size_t len = 0;
+
+    // 修饰键前缀
     if (status.ctrl)  len += snprintf(out + len, outSize - len, "Ctrl+");
     if (status.shift) len += snprintf(out + len, outSize - len, "Shift+");
     if (status.alt)   len += snprintf(out + len, outSize - len, "Alt+");
     if (status.opt)   len += snprintf(out + len, outSize - len, "Win+");
 
-    // 特殊按键 (Enter, Space) — 即使不在 hid_keys 中也能检测
+    // 特殊按键 (Enter, Space)
     if (status.enter) {
-        snprintf(out + len, outSize - len, "Enter");
+        snprintf(out + len, outSize - len, "Ent");
         return out;
     }
     if (M5Cardputer.Keyboard.isKeyPressed(' ')) {
-        if (len == 0) { strcpy(out, "Space"); }
-        else         { snprintf(out + len, outSize - len, "Space"); }
+        snprintf(out + len, outSize - len, "Spc");
         return out;
     }
 
     // 从 hid_keys 数组中提取按键
     bool hasKey = false;
     for (auto key : status.hid_keys) {
-        if (key == 0) continue;  // 跳过空槽位
+        if (key == 0) continue;
 
-        // FN 组合键映射 (与 HID 处理器保持一致)
+        // FN 组合键映射
         uint8_t displayKey = key;
         if (status.fn) {
             switch (key) {
-                case 0x38: displayKey = 0x4F; break; // / → Right
-                case 0x36: displayKey = 0x50; break; // , → Left
-                case 0x37: displayKey = 0x51; break; // . → Down
-                case 0x33: displayKey = 0x52; break; // ; → Up
-                case 0x2A: displayKey = 0x4C; break; // Bksp → Delete
-                case 0x35: displayKey = 0x29; break; // ` → Esc
+                case 0x38: displayKey = 0x4F; break; // /  → Right
+                case 0x36: displayKey = 0x50; break; // ,  → Left
+                case 0x37: displayKey = 0x51; break; // .  → Down
+                case 0x33: displayKey = 0x52; break; // ;  → Up
+                case 0x2A: displayKey = 0x4C; break; // Bsp → Delete
+                case 0x35: displayKey = 0x29; break; // `  → Esc
                 default: break;
             }
         }
@@ -337,55 +332,72 @@ static const char* getKeyDisplayString(bool mouseMode, char* out, size_t outSize
     }
 
     if (!hasKey && len > 0) {
-        // 只有修饰键被按下 (如单独的 Ctrl)
         out[len - 1] = '\0';  // 去掉尾部的 '+'
     }
 
     return out;
 }
 
+// ============================================================
+// 按键显示区域绘制
+// ============================================================
+
 /**
- * @brief 在屏幕中央区域绘制当前按下的按键
- * @param mouseMode true=鼠标模式, false=键盘模式
+ * @brief 在屏幕中央区域绘制当前/上一次按下的按键
  *
- * 从键盘状态提取按键信息，以大号字体居中显示在按键显示区域。
- * 如果无按键被按下，则清空显示区域。
+ * 行为:
+ *   - 有按键按下: 显示当前按键, 并保存到 g_lastKeyText
+ *   - 无按键按下: 继续显示上次保存的按键 (不会消失)
+ *   - clearKeyDisplayArea() 可清空保存的按键
  */
 void drawKeyDisplay(bool mouseMode) {
     char text[32];
     getKeyDisplayString(mouseMode, text, sizeof(text));
 
-    // 清除显示区域
+    // 记住最后按下的按键 (有新的则更新)
+    if (strlen(text) > 0) {
+        strcpy(g_lastKeyText, text);
+    }
+
+    // 清除显示区域 + 绘制边框
     int y = KEY_DISPLAY_Y;
     int h = KEY_DISPLAY_H;
     int w = M5Cardputer.Display.width();
     M5Cardputer.Display.fillRect(0, y, w, h, TFT_BLACK);
-
-    // 绘制边框
     M5Cardputer.Display.drawRoundRect(6, y, w - 12, h, 4, TFT_DARKGREY);
 
-    if (strlen(text) == 0) return;
+    // 选择显示内容: 当前按键优先, 否则显示上次按键
+    const char* displayText = (strlen(text) > 0) ? text : g_lastKeyText;
+    if (strlen(displayText) == 0) return;
 
-    // 居中绘制文字
-    int textSize = 3;
-    int charW = 6 * textSize;  // 等宽字体近似宽度
-    int textW = strlen(text) * charW;
+    // 根据文本长度自适应字号:
+    //   1-2 字符 (如 "^" "v" "A" "Ent"): textSize=5 (超大)
+    //   3-4 字符 (如 "Bsp" "Tab" "Del"): textSize=4
+    //   5+  字符 (如 "Ctrl+A" "Shift+1"): textSize=3
+    int tLen = strlen(displayText);
+    int textSize;
+    if (tLen <= 2)       textSize = 5;
+    else if (tLen <= 4)  textSize = 4;
+    else                 textSize = 3;
+
+    int charW = 6 * textSize;
+    int textW = tLen * charW;
     int cx = (w - textW) / 2;
     if (cx < 4) cx = 4;
-    int cy = y + (h - 8 * textSize) / 2;  // 8px 为字体基准高度
+    int cy = y + (h - 8 * textSize) / 2;
 
     M5Cardputer.Display.setTextColor(TFT_WHITE);
     M5Cardputer.Display.setTextSize(textSize);
     M5Cardputer.Display.setCursor(cx, cy);
-    M5Cardputer.Display.print(text);
+    M5Cardputer.Display.print(displayText);
 }
 
 /**
- * @brief 清空按键显示区域
- *
- * 用黑色填充按键显示区域，在模式切换时调用。
+ * @brief 清空按键显示区域并重置记忆
  */
 void clearKeyDisplayArea() {
+    g_lastKeyText[0] = '\0';  // 清空上次按键记忆
+
     int y = KEY_DISPLAY_Y;
     int h = KEY_DISPLAY_H;
     int w = M5Cardputer.Display.width();
@@ -397,18 +409,6 @@ void clearKeyDisplayArea() {
 // 模式选择界面
 // ============================================================
 
-/**
- * @brief 显示模式选择界面
- * @param mode true=USB模式高亮, false=蓝牙模式高亮
- *
- * 在启动时显示的选择界面，让用户选择 USB 还是蓝牙通信。
- * 当前选中的模式以灰色填充+黑色文字显示，
- * 未选中的模式以黑色填充+灰色文字显示。
- *
- * 操作提示:
- *   按 '.' 或 ';' 切换选择
- *   按 Enter 确认
- */
 void displaySelectionScreen(bool mode) {
     M5Cardputer.Display.clear();
     M5Cardputer.Display.setTextSize(1.5);
@@ -417,7 +417,7 @@ void displaySelectionScreen(bool mode) {
     M5Cardputer.Display.printf("Select Mode:");
     M5Cardputer.Display.setTextSize(3);
 
-    // USB 选项 — 选中时灰底黑字，未选中时黑底灰字
+    // USB 选项
     if (mode) {
         M5Cardputer.Display.fillRect(20, 30, 200, 40, TFT_LIGHTGRAY);
         M5Cardputer.Display.drawRect(20, 30, 200, 40, TFT_BLACK);
@@ -430,7 +430,7 @@ void displaySelectionScreen(bool mode) {
     M5Cardputer.Display.setCursor(95, 40);
     M5Cardputer.Display.printf("USB");
 
-    // 蓝牙选项 — 未选中时灰底黑字 (mode=true 即USB选中时)，选中时黑底灰字
+    // 蓝牙选项
     if (!mode) {
         M5Cardputer.Display.fillRect(20, 80, 200, 40, TFT_LIGHTGRAY);
         M5Cardputer.Display.drawRect(20, 80, 200, 40, TFT_BLACK);
