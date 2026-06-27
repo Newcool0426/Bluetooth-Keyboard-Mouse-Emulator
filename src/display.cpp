@@ -1,25 +1,17 @@
 /**
  * @file display.cpp
- * @brief 显示屏 UI 绘制函数实现 (M5Cardputer TFT 240x135)
+ * @brief M5Cardputer TFT 240x135 — 键盘/鼠标模拟器 UI
  *
- * 键盘模式布局:
- * ┌──────────────────────────────────┐
- * │ [USB/BT]  KEYBOARD        G0 >  │ y=0~23   (状态栏 24px)
- * │     ┌──────────────────┐        │ y=26~69  (当前按键 44px)
- * │     │   Ctrl+Shift+A   │        │
- * │     └──────────────────┘        │
- * │  abc def ghi ...               │ y=72~131 (文本缓冲区 60px)
- * └──────────────────────────────────┘
- *
- * 鼠标模式布局:
- * ┌──────────────────────────────────┐
- * │ [USB/BT]  MOUSE           G0 >  │ y=0~23   (状态栏)
- * │     ┌──────────────────┐        │ y=26~69  (当前操作 44px)
- * │     │     L-Click      │        │
- * │     └──────────────────┘        │
- * │  ;=Up  .=Dn  /=Rt  ,=Lt       │ y=72~131 (按键提示 60px)
- * │  Enter=左键  \=右键            │
- * └──────────────────────────────────┘
+ * 键盘模式布局:                    鼠标模式布局:
+ * ┌────────────────────────┐      ┌────────────────────────┐
+ * │ [icon] KEYBOARD  G0 > │ 24   │ [icon] MOUSE     G0 > │
+ * │  ┌──────────────────┐ │      │  ┌──────────────────┐ │
+ * │  │   Ctrl+Shift+A   │ │ 38   │  │     L-Click     │ │
+ * │  └──────────────────┘ │      │  └──────────────────┘ │
+ * │  abc def ghi ...     │ 66   │     ; Up      Ent=L   │
+ * │  jkl mno pqr ...     │      │ , Lft  / Rt    \=R    │
+ * │  stu vwx yz          │      │    . Dn               │
+ * └────────────────────────┘      └────────────────────────┘
  */
 
 #include "display.h"
@@ -27,11 +19,11 @@
 // ============================================================
 // 布局常量
 // ============================================================
-#define STATUS_BAR_H    24
-#define KEY_DISPLAY_Y   26
-#define KEY_DISPLAY_H   44
-#define BOTTOM_Y        72
-#define BOTTOM_H        60
+#define STATUS_BAR_H    24    // 状态栏
+#define KEY_DISPLAY_Y   26    // 实时按键区 Y
+#define KEY_DISPLAY_H   38    // 实时按键区 高度
+#define BOTTOM_Y        66    // 下半区 Y (文本缓冲区 / 鼠标提示)
+#define BOTTOM_H        66    // 下半区 高度
 #define TEXT_BUF_SIZE   512
 
 // ============================================================
@@ -42,34 +34,24 @@ static int  g_textLen = 0;
 static char g_lastLiveKey[32] = "";
 
 // ============================================================
-// 图标: USB 三叉戟 (填充版, 16x18)
+// 图标: USB (填充版, 16x18)
 // ============================================================
 static void drawUsbIcon(uint8_t x, uint8_t y, uint16_t color) {
-    // 顶部横杆
-    M5Cardputer.Display.fillRect(x + 1, y + 2, 15, 3, color);
-    // 左侧箭尖 (填充三角)
+    M5Cardputer.Display.fillRect(x + 1, y + 2, 15, 3, color);         // 横杆
     M5Cardputer.Display.fillTriangle(x + 1, y + 2, x + 8, y + 2, x + 1, y + 7, color);
-    // 右侧箭尖
     M5Cardputer.Display.fillTriangle(x + 16, y + 2, x + 9, y + 2, x + 16, y + 7, color);
-    // 竖杆
-    M5Cardputer.Display.fillRect(x + 7, y + 5, 3, 10, color);
-    // 底部圆点
-    M5Cardputer.Display.fillCircle(x + 8, y + 17, 3, color);
+    M5Cardputer.Display.fillRect(x + 7, y + 5, 3, 10, color);         // 竖杆
+    M5Cardputer.Display.fillCircle(x + 8, y + 17, 3, color);          // 圆点
 }
 
 // ============================================================
-// 图标: 蓝牙符文 (填充版, 16x20)
+// 图标: 蓝牙 (填充版, 16x20)
 // ============================================================
 static void drawBluetoothIcon(uint8_t x, uint8_t y, uint16_t color) {
-    // 中心竖杆 (加粗)
-    M5Cardputer.Display.fillRect(x + 7, y + 1, 3, 18, color);
-    // 右上尖角
+    M5Cardputer.Display.fillRect(x + 7, y + 1, 3, 18, color);         // 竖杆
     M5Cardputer.Display.fillTriangle(x + 10, y + 1, x + 17, y + 9, x + 10, y + 9, color);
-    // 右下尖角
     M5Cardputer.Display.fillTriangle(x + 10, y + 10, x + 17, y + 11, x + 10, y + 19, color);
-    // 左上小角
     M5Cardputer.Display.fillTriangle(x + 7, y + 3, x, y + 9, x + 7, y + 9, color);
-    // 左下小角
     M5Cardputer.Display.fillTriangle(x + 7, y + 10, x, y + 11, x + 7, y + 17, color);
 }
 
@@ -94,9 +76,6 @@ void displayWelcomeScreen() {
     delay(2000);
 }
 
-// ============================================================
-// 主界面
-// ============================================================
 void displayMainScreen(bool usbMode, bool mouseMode, bool bluetoothStatus) {
     M5Cardputer.Display.fillScreen(TFT_BLACK);
     drawStatusBar(usbMode, mouseMode, bluetoothStatus);
@@ -111,29 +90,23 @@ void drawStatusBar(bool usbMode, bool mouseMode, bool bluetoothStatus) {
     uint16_t bgColor = mouseMode ? TFT_NAVY : TFT_DARKGREEN;
     M5Cardputer.Display.fillRect(0, 0, w, STATUS_BAR_H, bgColor);
 
-    // 连接图标 (y 偏移增大以适应更高状态栏)
+    // 连接图标
     uint16_t iconColor;
-    if (usbMode) {
-        iconColor = TFT_GREEN;
-    } else {
-        iconColor = bluetoothStatus ? TFT_GREEN : TFT_RED;
-    }
-    if (usbMode) {
-        drawUsbIcon(2, 3, iconColor);
-    } else {
-        drawBluetoothIcon(2, 2, iconColor);
-    }
+    if (usbMode) { iconColor = TFT_GREEN; }
+    else         { iconColor = bluetoothStatus ? TFT_GREEN : TFT_RED; }
+    if (usbMode) drawUsbIcon(2, 3, iconColor);
+    else         drawBluetoothIcon(2, 2, iconColor);
 
-    // 模式文字 (放大字号)
+    // 模式文字 (textSize=2)
     M5Cardputer.Display.setTextColor(TFT_WHITE);
     M5Cardputer.Display.setTextSize(2);
     M5Cardputer.Display.setCursor(21, 4);
     M5Cardputer.Display.print(mouseMode ? "MOUSE" : "KEYBOARD");
 
-    // 右侧 G0 切换提示
-    M5Cardputer.Display.setTextSize(1);
+    // 右侧 G0 提示 (同字号)
     const char* goHint = "G0 >";
-    M5Cardputer.Display.setCursor(w - (int)strlen(goHint) * 7 - 5, 8);
+    int goW = (int)strlen(goHint) * 12;  // textSize=2 → 12px/char
+    M5Cardputer.Display.setCursor(w - goW - 5, 4);
     M5Cardputer.Display.print(goHint);
 }
 
@@ -147,34 +120,24 @@ static const char* hidToDisplay(uint8_t key, bool shifted, char* buf) {
         if (shifted) c = c - 'a' + 'A';
         buf[0] = c; buf[1] = '\0';
     } else if (key >= 0x1E && key <= 0x27) {
-        static const char* shiftedNum = "!@#$%^&*()";
-        if (shifted && key - 0x1E < 10) { buf[0] = shiftedNum[key - 0x1E]; }
-        else if (key == 0x27)           { buf[0] = '0'; }
-        else                            { buf[0] = '1' + (key - 0x1E); }
+        static const char* sn = "!@#$%^&*()";
+        if (shifted && key - 0x1E < 10) buf[0] = sn[key - 0x1E];
+        else if (key == 0x27)           buf[0] = '0';
+        else                            buf[0] = '1' + (key - 0x1E);
         buf[1] = '\0';
     } else {
         switch (key) {
-            case 0x28: strcpy(buf, "Ent"); break;
-            case 0x29: strcpy(buf, "Esc"); break;
-            case 0x2A: strcpy(buf, "Bsp"); break;
-            case 0x2B: strcpy(buf, "Tab"); break;
-            case 0x2C: strcpy(buf, "Spc"); break;
-            case 0x2D: strcpy(buf, "-");   break;
-            case 0x2E: strcpy(buf, "=");   break;
-            case 0x2F: strcpy(buf, "[");   break;
-            case 0x30: strcpy(buf, "]");   break;
-            case 0x31: strcpy(buf, "\\");  break;
-            case 0x33: strcpy(buf, ";");   break;
-            case 0x34: strcpy(buf, "'");   break;
-            case 0x35: strcpy(buf, "`");   break;
-            case 0x36: strcpy(buf, ",");   break;
-            case 0x37: strcpy(buf, ".");   break;
-            case 0x38: strcpy(buf, "/");   break;
+            case 0x28: strcpy(buf, "Ent"); break; case 0x29: strcpy(buf, "Esc"); break;
+            case 0x2A: strcpy(buf, "Bsp"); break; case 0x2B: strcpy(buf, "Tab"); break;
+            case 0x2C: strcpy(buf, "Spc"); break; case 0x2D: strcpy(buf, "-");   break;
+            case 0x2E: strcpy(buf, "=");   break; case 0x2F: strcpy(buf, "[");   break;
+            case 0x30: strcpy(buf, "]");   break; case 0x31: strcpy(buf, "\\");  break;
+            case 0x33: strcpy(buf, ";");   break; case 0x34: strcpy(buf, "'");   break;
+            case 0x35: strcpy(buf, "`");   break; case 0x36: strcpy(buf, ",");   break;
+            case 0x37: strcpy(buf, ".");   break; case 0x38: strcpy(buf, "/");   break;
             case 0x4C: strcpy(buf, "Del"); break;
-            case 0x4F: strcpy(buf, ">");   break;
-            case 0x50: strcpy(buf, "<");   break;
-            case 0x51: strcpy(buf, "v");   break;
-            case 0x52: strcpy(buf, "^");   break;
+            case 0x4F: strcpy(buf, ">");   break; case 0x50: strcpy(buf, "<");   break;
+            case 0x51: strcpy(buf, "v");   break; case 0x52: strcpy(buf, "^");   break;
             default: break;
         }
     }
@@ -190,23 +153,20 @@ static const char* getKeyDisplayString(bool mouseMode, char* out, size_t outSize
     char buf[8];
 
     if (mouseMode) {
-        // 鼠标模式 — 使用描述性文字
-        if (M5Cardputer.Keyboard.isKeyPressed(';'))        { strcpy(out, "Up");        return out; }
-        if (M5Cardputer.Keyboard.isKeyPressed('.'))        { strcpy(out, "Down");      return out; }
-        if (M5Cardputer.Keyboard.isKeyPressed('/'))        { strcpy(out, "Right");     return out; }
-        if (M5Cardputer.Keyboard.isKeyPressed(','))        { strcpy(out, "Left");      return out; }
-        if (status.enter)                                  { strcpy(out, "L-Click");   return out; }
-        if (M5Cardputer.Keyboard.isKeyPressed('\\'))       { strcpy(out, "R-Click");   return out; }
+        if (M5Cardputer.Keyboard.isKeyPressed(';'))        { strcpy(out, "Up");      return out; }
+        if (M5Cardputer.Keyboard.isKeyPressed('.'))        { strcpy(out, "Down");    return out; }
+        if (M5Cardputer.Keyboard.isKeyPressed('/'))        { strcpy(out, "Right");   return out; }
+        if (M5Cardputer.Keyboard.isKeyPressed(','))        { strcpy(out, "Left");    return out; }
+        if (status.enter)                                  { strcpy(out, "L-Click"); return out; }
+        if (M5Cardputer.Keyboard.isKeyPressed('\\'))       { strcpy(out, "R-Click"); return out; }
         return out;
     }
 
-    // 键盘模式
     size_t len = 0;
     if (status.ctrl)  len += snprintf(out + len, outSize - len, "Ctrl+");
     if (status.shift) len += snprintf(out + len, outSize - len, "Shift+");
     if (status.alt)   len += snprintf(out + len, outSize - len, "Alt+");
     if (status.opt)   len += snprintf(out + len, outSize - len, "Win+");
-
     if (status.enter) { snprintf(out + len, outSize - len, "Ent"); return out; }
     if (M5Cardputer.Keyboard.isKeyPressed(' ')) {
         snprintf(out + len, outSize - len, "Spc"); return out;
@@ -234,17 +194,14 @@ static const char* getKeyDisplayString(bool mouseMode, char* out, size_t outSize
 }
 
 // ============================================================
-// 文本缓冲区 (仅键盘模式)
+// 文本缓冲区 (键盘模式)
 // ============================================================
 
 static char getTypedChar(const Keyboard_Class::KeysState& status) {
-    // 仅修饰键按下 → 不追加
-    bool anyHidKey = false;
-    for (auto k : status.hid_keys) { if (k != 0) { anyHidKey = true; break; } }
-    bool onlyMods = (status.ctrl || status.shift || status.alt || status.opt)
-                    && !status.enter && !M5Cardputer.Keyboard.isKeyPressed(' ')
-                    && !anyHidKey;
-    if (onlyMods) return 0;
+    bool any = false;
+    for (auto k : status.hid_keys) { if (k != 0) { any = true; break; } }
+    if ((status.ctrl || status.shift || status.alt || status.opt)
+        && !status.enter && !M5Cardputer.Keyboard.isKeyPressed(' ') && !any) return 0;
 
     if (status.enter) return '\n';
     if (M5Cardputer.Keyboard.isKeyPressed(' ')) return ' ';
@@ -287,45 +244,48 @@ static void appendToTextBuffer(char c) {
         if (g_textLen > 0) { g_textLen--; g_textBuf[g_textLen] = '\0'; }
     } else if (c == '\t') {
         if (g_textLen + 2 < TEXT_BUF_SIZE) {
-            g_textBuf[g_textLen++] = ' ';
-            g_textBuf[g_textLen++] = ' ';
+            g_textBuf[g_textLen++] = ' '; g_textBuf[g_textLen++] = ' ';
             g_textBuf[g_textLen] = '\0';
         }
     } else if (c == '\n' || (c >= 0x20 && c <= 0x7E)) {
         if (g_textLen < TEXT_BUF_SIZE - 1) {
-            g_textBuf[g_textLen++] = c;
-            g_textBuf[g_textLen] = '\0';
+            g_textBuf[g_textLen++] = c; g_textBuf[g_textLen] = '\0';
         }
     }
 }
 
+/**
+ * @brief 绘制文本缓冲区 (textSize=2, 4行可见)
+ */
 static void drawTextBuffer() {
     int y0 = BOTTOM_Y, hh = BOTTOM_H, w = M5Cardputer.Display.width();
     M5Cardputer.Display.fillRect(0, y0, w, hh, TFT_BLACK);
     M5Cardputer.Display.drawRoundRect(6, y0, w - 12, hh, 4, TFT_DARKGREY);
     if (g_textLen == 0) return;
 
-    M5Cardputer.Display.setTextSize(1);
+    M5Cardputer.Display.setTextSize(2);
     M5Cardputer.Display.setTextColor(TFT_LIGHTGREY);
-    int margin = 10, charsPerLine = (w - 2 * margin) / 6;
-    if (charsPerLine < 1) charsPerLine = 1;
-    int lineH = 9, maxVis = hh / lineH;
+
+    int margin = 10;
+    int cpl = (w - 2 * margin) / 12;   // textSize=2 → 12px/char
+    if (cpl < 1) cpl = 1;
+    int lineH = 16, maxVis = hh / lineH;
     if (maxVis < 1) maxVis = 1;
 
-    // 环形缓冲区收集所有显示行
-    #define RING_CAP 48
-    struct { int start; int len; } ring[RING_CAP];
+    // 环形缓冲区收集显示行
+    #define RING 48
+    struct { int s; int l; } ring[RING];
     int ri = 0, rc = 0;
-    auto push = [&](int s, int l) { ring[ri].start = s; ring[ri].len = l; ri = (ri + 1) % RING_CAP; if (rc < RING_CAP) rc++; };
+    auto push = [&](int st, int ln) { ring[ri].s = st; ring[ri].l = ln; ri = (ri + 1) % RING; if (rc < RING) rc++; };
 
     int seg = 0;
     for (int i = 0; i <= g_textLen; i++) {
         char ch = (i < g_textLen) ? g_textBuf[i] : '\n';
         if (ch == '\t') ch = ' ';
-        bool nl = (ch == '\n'), full = (i - seg >= charsPerLine);
+        bool nl = (ch == '\n'), full = (i - seg >= cpl);
         if (nl || full || i == g_textLen) {
             int take = i - seg;
-            if (nl && full) { push(seg, charsPerLine); seg += charsPerLine; i--; continue; }
+            if (nl && full) { push(seg, cpl); seg += cpl; i--; continue; }
             if (take > 0 || nl) push(seg, take);
             seg = i + 1;
         }
@@ -333,49 +293,62 @@ static void drawTextBuffer() {
 
     int start = (rc > maxVis) ? rc - maxVis : 0;
     for (int d = 0; d < maxVis && (start + d) < rc; d++) {
-        int idx = (ri - rc + start + d) % RING_CAP; if (idx < 0) idx += RING_CAP;
-        int len = ring[idx].len; if (len <= 0 || len > charsPerLine) continue;
+        int idx = (ri - rc + start + d) % RING; if (idx < 0) idx += RING;
+        int len = ring[idx].l; if (len <= 0 || len > cpl) continue;
         char lb[64]; int cl = len < 63 ? len : 63;
-        for (int j = 0; j < cl; j++) { char c = g_textBuf[ring[idx].start + j]; lb[j] = (c == '\t') ? ' ' : c; }
+        for (int j = 0; j < cl; j++) { char c = g_textBuf[ring[idx].s + j]; lb[j] = (c == '\t') ? ' ' : c; }
         lb[cl] = '\0';
-        M5Cardputer.Display.setCursor(margin, y0 + 3 + d * lineH);
+        M5Cardputer.Display.setCursor(margin, y0 + 2 + d * lineH);
         M5Cardputer.Display.print(lb);
     }
 }
 
 // ============================================================
-// 鼠标模式按键提示
+// 鼠标模式按键提示 (textSize=2, dpad 十字排列)
 // ============================================================
 static void drawMouseHints() {
     int y0 = BOTTOM_Y, hh = BOTTOM_H, w = M5Cardputer.Display.width();
     M5Cardputer.Display.fillRect(0, y0, w, hh, TFT_BLACK);
     M5Cardputer.Display.drawRoundRect(6, y0, w - 12, hh, 4, TFT_DARKGREY);
 
-    M5Cardputer.Display.setTextSize(1);
+    M5Cardputer.Display.setTextSize(2);
     M5Cardputer.Display.setTextColor(TFT_LIGHTGREY);
 
-    struct { const char* txt; int x; int y; } lines[] = {
-        {";=Up",   14, y0 + 8},
-        {".=Down",  80, y0 + 8},
-        {"/=Right", 146, y0 + 8},
-        {",=Left",  14, y0 + 20},
-        {"Ent=L-Clk", 14, y0 + 34},
-        {"\\=R-Clk",  14, y0 + 46},
-    };
-    for (auto& L : lines) {
-        M5Cardputer.Display.setCursor(L.x, L.y);
-        M5Cardputer.Display.print(L.txt);
-    }
+    int lineH = 16;
+    int y1 = y0 + 4;          // 第1行
+    int y2 = y1 + lineH;      // 第2行
+    int y3 = y2 + lineH;      // 第3行
+
+    // === 方向键: 十字排列 ===
+    // 上: ; Up   (居中偏左)
+    M5Cardputer.Display.setCursor(41, y1);
+    M5Cardputer.Display.print("; Up");
+
+    // 左 + 右 (同一行)
+    M5Cardputer.Display.setCursor(12, y2);
+    M5Cardputer.Display.print(", Lft");
+    M5Cardputer.Display.setCursor(100, y2);
+    M5Cardputer.Display.print("/ Rt");
+
+    // 下
+    M5Cardputer.Display.setCursor(41, y3);
+    M5Cardputer.Display.print(". Dn");
+
+    // === 点击键: 右侧 ===
+    M5Cardputer.Display.setCursor(160, y1);
+    M5Cardputer.Display.print("Ent=L");
+    M5Cardputer.Display.setCursor(172, y3);
+    M5Cardputer.Display.print("\\=R");
 }
 
 // ============================================================
-// 按键显示 (实时 + 累积/提示)
+// 按键显示 (实时 + 底部)
 // ============================================================
 void drawKeyDisplay(bool mouseMode) {
     char text[32];
     getKeyDisplayString(mouseMode, text, sizeof(text));
 
-    // === 实时按键区域 (上半) ===
+    // === 上半: 实时按键 ===
     {
         int y = KEY_DISPLAY_Y, hh = KEY_DISPLAY_H, w = M5Cardputer.Display.width();
         M5Cardputer.Display.fillRect(0, y, w, hh, TFT_BLACK);
@@ -387,7 +360,7 @@ void drawKeyDisplay(bool mouseMode) {
         if (strlen(show) > 0) {
             int tLen = strlen(show);
             int tSize;
-            if (mouseMode)       tSize = 3;   // 鼠标模式固定字号
+            if (mouseMode)       tSize = 3;
             else if (tLen <= 2)  tSize = 4;
             else if (tLen <= 4)  tSize = 3;
             else                 tSize = 2;
@@ -403,12 +376,11 @@ void drawKeyDisplay(bool mouseMode) {
         }
     }
 
-    // === 下半区域 ===
+    // === 下半 ===
     if (mouseMode) {
-        // 鼠标模式: 显示按键提示
         drawMouseHints();
     } else {
-        // 键盘模式: 追加按键到文本缓冲区并显示
+        // 文本追加 (仅键盘模式, 仅新按键)
         static char lastAppendKey[32] = "";
         if (strlen(text) > 0) {
             if (strcmp(text, lastAppendKey) != 0) {
@@ -429,14 +401,16 @@ void clearKeyDisplayArea() {
     g_lastLiveKey[0] = '\0';
 
     int w = M5Cardputer.Display.width();
-    // 上半: 实时按键区
-    { int y = KEY_DISPLAY_Y, hh = KEY_DISPLAY_H;
-      M5Cardputer.Display.fillRect(0, y, w, hh, TFT_BLACK);
-      M5Cardputer.Display.drawRoundRect(6, y, w - 12, hh, 4, TFT_DARKGREY); }
-    // 下半: 初始清空 (具体内容由 drawKeyDisplay 重绘)
-    { int y = BOTTOM_Y, hh = BOTTOM_H;
-      M5Cardputer.Display.fillRect(0, y, w, hh, TFT_BLACK);
-      M5Cardputer.Display.drawRoundRect(6, y, w - 12, hh, 4, TFT_DARKGREY); }
+    {
+        int y = KEY_DISPLAY_Y, hh = KEY_DISPLAY_H;
+        M5Cardputer.Display.fillRect(0, y, w, hh, TFT_BLACK);
+        M5Cardputer.Display.drawRoundRect(6, y, w - 12, hh, 4, TFT_DARKGREY);
+    }
+    {
+        int y = BOTTOM_Y, hh = BOTTOM_H;
+        M5Cardputer.Display.fillRect(0, y, w, hh, TFT_BLACK);
+        M5Cardputer.Display.drawRoundRect(6, y, w - 12, hh, 4, TFT_DARKGREY);
+    }
 }
 
 // ============================================================

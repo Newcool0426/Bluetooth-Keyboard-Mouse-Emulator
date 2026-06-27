@@ -116,11 +116,12 @@ void loop() {
         lastBluetoothStatus = bluetoothStatus;
     }
 
-    // BtnA (GO 键) 用于切换键盘/鼠标模式
+    // BtnA (G0 键) 用于切换键盘/鼠标模式
     if (M5Cardputer.BtnA.isPressed()) {
         mouseMode = !mouseMode;
         drawStatusBar(usbMode, mouseMode, bluetoothStatus);
-        clearKeyDisplayArea();          // 清空按键显示
+        clearKeyDisplayArea();
+        drawKeyDisplay(mouseMode);      // 立即绘制新模式的底部区域
         delay(200);  // 防抖延迟
     }
 
@@ -132,9 +133,10 @@ void loop() {
         handleBluetoothMode(mouseMode);
     }
 
-    // 按键状态变化时更新屏幕上的按键显示
-    // (使用预先保存的 keyChanged，不会被 HID 处理消费)
-    if (keyChanged) {
+    // 始终更新按键显示
+    // — 键盘模式: 仅 keyChanged 时才需要更新 (文本缓冲区不变)
+    // — 鼠标模式: 始终更新 (按键提示需要常驻显示)
+    if (keyChanged || mouseMode) {
         drawKeyDisplay(mouseMode);
     }
 
