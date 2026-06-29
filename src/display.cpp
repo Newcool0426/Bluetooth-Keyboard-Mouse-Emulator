@@ -4,7 +4,7 @@
  *
  * 键盘模式布局:                    鼠标模式布局:
  * ┌────────────────────────┐      ┌────────────────────────┐
- * │ [icon] KEYBOARD  G0 > │ 24   │ [icon] MOUSE     G0 > │
+ * │ USB   KEYBOARD   G0 > │ 24   │ BT    MOUSE      G0 > │
  * │  ┌──────────────────┐ │      │  ┌──────────────────┐ │
  * │  │   Ctrl+Shift+A   │ │ 38   │  │     L-Click     │ │
  * │  └──────────────────┘ │      │  └──────────────────┘ │
@@ -37,28 +37,6 @@ static char g_textBuf[TEXT_BUF_SIZE] = "";
 static int  g_textLen = 0;
 static char g_lastLiveKey[32] = "";
 static bool g_hintsNeedRedraw = true;    // 鼠标提示是否需要重绘
-
-// ============================================================
-// 图标: USB (填充版)
-// ============================================================
-static void drawUsbIcon(uint8_t x, uint8_t y, uint16_t color) {
-    M5Cardputer.Display.fillRect(x + 1, y + 2, 15, 3, color);
-    M5Cardputer.Display.fillTriangle(x + 1, y + 2, x + 8, y + 2, x + 1, y + 7, color);
-    M5Cardputer.Display.fillTriangle(x + 16, y + 2, x + 9, y + 2, x + 16, y + 7, color);
-    M5Cardputer.Display.fillRect(x + 7, y + 5, 3, 10, color);
-    M5Cardputer.Display.fillCircle(x + 8, y + 17, 3, color);
-}
-
-// ============================================================
-// 图标: 蓝牙 (填充版)
-// ============================================================
-static void drawBluetoothIcon(uint8_t x, uint8_t y, uint16_t color) {
-    M5Cardputer.Display.fillRect(x + 7, y + 1, 3, 18, color);
-    M5Cardputer.Display.fillTriangle(x + 10, y + 1, x + 17, y + 9, x + 10, y + 9, color);
-    M5Cardputer.Display.fillTriangle(x + 10, y + 10, x + 17, y + 11, x + 10, y + 19, color);
-    M5Cardputer.Display.fillTriangle(x + 7, y + 3, x, y + 9, x + 7, y + 9, color);
-    M5Cardputer.Display.fillTriangle(x + 7, y + 10, x, y + 11, x + 7, y + 17, color);
-}
 
 // ============================================================
 // 初始化 / 欢迎画面 / 主界面
@@ -95,19 +73,30 @@ void drawStatusBar(bool usbMode, bool mouseMode, bool bluetoothStatus) {
     uint16_t bgColor = mouseMode ? TFT_NAVY : TFT_DARKGREEN;
     M5Cardputer.Display.fillRect(0, 0, w, STATUS_BAR_H, bgColor);
 
-    uint16_t iconColor;
-    if (usbMode) { iconColor = TFT_GREEN; }
-    else         { iconColor = bluetoothStatus ? TFT_GREEN : TFT_RED; }
-    if (usbMode) drawUsbIcon(2, 3, iconColor);
-    else         drawBluetoothIcon(2, 2, iconColor);
-
-    M5Cardputer.Display.setTextColor(TFT_WHITE);
     M5Cardputer.Display.setTextSize(2);
-    M5Cardputer.Display.setCursor(21, 4);
-    M5Cardputer.Display.print(mouseMode ? "MOUSE" : "KEYBOARD");
 
+    // 左侧: 连接方式 (USB / BT)
+    if (usbMode) {
+        M5Cardputer.Display.setTextColor(TFT_GREEN);
+        M5Cardputer.Display.setCursor(4, 4);
+        M5Cardputer.Display.print("USB");
+    } else {
+        M5Cardputer.Display.setTextColor(bluetoothStatus ? TFT_GREEN : TFT_RED);
+        M5Cardputer.Display.setCursor(4, 4);
+        M5Cardputer.Display.print("BT");
+    }
+
+    // 中间: 模式文字 (居中)
+    const char* modeText = mouseMode ? "MOUSE" : "KEYBOARD";
+    int modeW = (int)strlen(modeText) * 12;
+    M5Cardputer.Display.setTextColor(TFT_WHITE);
+    M5Cardputer.Display.setCursor((w - modeW) / 2, 4);
+    M5Cardputer.Display.print(modeText);
+
+    // 右侧: G0 提示
     const char* goHint = "G0 >";
     int goW = (int)strlen(goHint) * 12;
+    M5Cardputer.Display.setTextColor(TFT_WHITE);
     M5Cardputer.Display.setCursor(w - goW - 5, 4);
     M5Cardputer.Display.print(goHint);
 }
